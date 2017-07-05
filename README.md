@@ -38,3 +38,159 @@ rails g model tag name
 rails g model tagging tag:belongs_to article:belongs_to
 ```
 
++ Migrate the database.
+```bash
+rails db:migrate
+```
+
++ Setup the associations in the models. In tag model:
+```rb
+class Tag < ApplicationRecord
+  has_many :taggings
+  has_many :articles, through: :taggings
+end
+```
+
+```rb
+class Article < ApplicationRecord
+  has_many :taggings
+  has_many :tags, through: :taggings
+
+  def self.tagged_with(name)
+    Tag.find_by!(name: name).articles
+  end
+
+  def self.tag_counts
+    Tag.select('tags.*, count(taggings.tag_id) as count').joins(:taggings).group('taggings.tag_id')
+  end
+
+  # tag_list setter/getter
+  def tag_list
+    tags.map(&:name).join(', ')
+  end
+
+  def tag_list=(names)
+    self.tags = names.split(',').map do |n|
+      Tag.where(name: n.strip).first_or_create!
+    end
+  end
+end
+```
+
++ Create the articles controller with index, new, show and edit actions.
+```bash
+rails g controller articles index new show edit
+```
+
++ The articles controller is straightforward.
+```rb
+class ArticlesController < ApplicationController
+  def index
+    @articles = if params[:tag]
+      Article.tagged_with(params[:tag])
+    else
+      Article.all
+    end
+  end
+
+  def new
+    @article = Article.new
+  end
+
+  def show
+    @article = Article.find(params[:id])
+  end
+
+  def create
+    @article = Article.new(article_params)
+    if @article.save
+      redirect_to @article, notice: 'Created article.'
+    else
+      render :new
+    end
+  end
+
+  def edit
+    @article = Article.find(params[:id])
+  end
+
+  def update
+    @article = Article.find(params[:id])
+    if @article.update_attributes(article_params)
+      redirect_to @article, notice: 'Updated article.'
+    else
+      render :edit
+    end
+  end
+
+  private
+
+  def article_params
+    params.require(:article).permit(:name, :published_on, :content)
+  end
+end
+```
+
+
++ article/index.html.erb
+```erb
+<h1>Articles</h1>
+
+<div id="tag_cloud">
+  <% tag_cloud Article.tag_counts, %w[s m l] do |tag, css_class| %>
+    <%= link_to tag.name, tag_path(tag.name), class: css_class %>
+  <% end %>
+</div>
+
+<div id="articles">
+  <% @articles.each do |article| %>
+    <h2><%= link_to article.name, article %></h2>
+    <%= simple_format article.content %>
+    <p>
+      Tags: <%= raw article.tags.map(&:name).map { |t| link_to t, tag_path(t) }.join(', ') %>
+    </p>
+    <p><%= link_to "Edit Article", edit_article_path(article) %></p>
+  <% end %>
+</div>
+
+<p><%= link_to "New Article", new_article_path %></p>
+```
+
++ article/new.html.erb
+```erb
+
+```
+
+
++ article.scss
+```scss
+#tag_cloud {
+  width: 400px;
+  line-height: 1.6em;
+  .s { font-size: 0.8em; }
+  .m { font-size: 1.2em; }
+  .l { font-size: 1.8em; }
+}
+```
+
+
++ application_helper.rb
+```rb
+module ApplicationHelper
+  def tag_cloud(tags, classes)
+    max = tags.sort_by(&:count).last
+    tags.each do |tag|
+      index = tag.count.to_f / max.count * (classes.size - 1)
+      yield(tag, classes[index.round])
+    end
+  end
+end
+```
+
++ rails db:seed
++ routes.rb
+```rb
+  resources :articles
+  root 'articles#index'
+  get 'tags/:tag', to: 'articles#index', as: :tag, :constraints  => { :tag => /[^\/]+/ }
+```
