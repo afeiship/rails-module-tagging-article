@@ -5,7 +5,11 @@
 + Create an article model.
 ```bash
 rails g model article name published_on:date content:text
+rails g model tag name
+rails g model tagging tag:belongs_to article:belongs_to
+rails db:migrate
 ```
+
 + Create sample data in seeds.rb:
 ```rb
 batman = Article.create! name: "Batman", content: <<-ARTICLE
@@ -29,29 +33,15 @@ Robin is the name of several fictional characters appearing in comic books publi
 ARTICLE
 ```
 
-+ Create the tag model with name attribute.
-```bash
-rails g model tag name
-```
-+ Create the tagging model.
-```bash
-rails g model tagging tag:belongs_to article:belongs_to
-```
-
-+ Migrate the database.
-```bash
-rails db:migrate
-```
-
 + Setup the associations in the models. In tag model:
 ```rb
+# model/tag.rb
 class Tag < ApplicationRecord
   has_many :taggings
   has_many :articles, through: :taggings
 end
-```
 
-```rb
+# model/article.rb
 class Article < ApplicationRecord
   has_many :taggings
   has_many :tags, through: :taggings
@@ -193,4 +183,19 @@ end
   resources :articles
   root 'articles#index'
   get 'tags/:tag', to: 'articles#index', as: :tag, :constraints  => { :tag => /[^\/]+/ }
+```
+
+
+
+## resources:
++ https://rubyplus.com/articles/4241-Tagging-from-Scratch-in-Rails-5
+
+## mime
+```conf
+这里用tagging 比一般的articles_tags这种关联好,好处在于:
+
+这里的tagging是一个能用的tag关联表.
+
+越抽象,越通用.
+
 ```
