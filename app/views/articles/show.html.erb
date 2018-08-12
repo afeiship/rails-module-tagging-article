@@ -1,2 +1,13 @@
-<h1>Articles#show</h1>
-<p>Find me in app/views/articles/show.html.erb</p>
+<h1><%= @article.name %></h1>
+<div class="content">
+    <%= @article.content %>
+</div>
+<footer>
+    <strong>
+    创建时间：
+    </strong>
+    <span>
+        <%= @article.created_at %>
+    </span>
+</footer>
+
